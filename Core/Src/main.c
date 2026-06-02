@@ -111,29 +111,31 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART1_UART_Init();
-  /* USER CODE BEGIN 2 */
-  Input_Init();
+
   MAX485_Init(&huart1);
-  /* USER CODE END 2 */
+
+  /* Load config 1 lần khi vừa boot */
+  Config_LoadFromFlash();
+
   MAX485_SendString("RS485 READY\r\n");
-  /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
+
   while (1)
   {
-    /* USER CODE END WHILE */
-	  Check_4Input();
-	  if (MAX485_Available())
-	      {
-	          char *cmd;
+      Check_4Input();
 
-	          cmd = MAX485_ReadLine();
+      if (MAX485_Available())
+      {
+          char *cmd;
 
-	          Protocol_Process(cmd);
-	      }
+          cmd = MAX485_ReadLine();
 
-	      HAL_Delay(10);
+          if (cmd != NULL)
+          {
+              Protocol_Process(cmd);
+          }
+      }
 
-    /* USER CODE BEGIN 3 */
+      HAL_Delay(10);
   }
   /* USER CODE END 3 */
 }

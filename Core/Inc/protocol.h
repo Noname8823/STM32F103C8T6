@@ -5,5 +5,5 @@
 #include <stdint.h>
 
 void Protocol_Process(char *cmd);
-
+void Config_LoadFromFlash(void);
 #endif
