@@ -1,118 +1,132 @@
-/*
- * protocol.c
- *
- *  Created on: May 28, 2026
- *      Author: tranquocvu2
- */
-
-
-#include "Protocol.h"
+#include "protocol.h"
 #include "max485.h"
 #include "Isolated_Input.h"
+
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-static void Protocol_SendOK(char *msg)
+static uint8_t nodeId = 1;
+static uint8_t destId = 2;
+static char role[4] = "TX";
+
+static uint32_t freq = 433000000;
+static uint8_t bw = 0;
+static uint8_t sf = 10;
+static uint8_t cr = 1;
+static int8_t pwr = 14;
+
+static void Protocol_SendOK(void)
 {
-    char tx[64];
-    snprintf(tx, sizeof(tx), "@%02d,OK,%s\r\n", DEVICE_ID, msg);
+    MAX485_SendString("OK\r\n");
+}
+
+static void Protocol_SendError(void)
+{
+    MAX485_SendString("ERROR\r\n");
+}
+
+static void Protocol_SendConfig(void)
+{
+    char tx[128];
+
+    sprintf(tx,
+            "CFG ID=%d DST=%d ROLE=%s FREQ=%lu BW=%d SF=%d CR=%d PWR=%d\r\n",
+            nodeId,
+            destId,
+            role,
+            freq,
+            bw,
+            sf,
+            cr,
+            pwr);
+
     MAX485_SendString(tx);
 }
 
-static void Protocol_SendERR(char *msg)
+static void Protocol_SendInput(void)
 {
+    uint8_t state[4];
     char tx[64];
-    snprintf(tx, sizeof(tx), "@%02d,ERR,%s\r\n", DEVICE_ID, msg);
+
+    Input_GetAll(state);
+
+    sprintf(tx,
+            "IN=%d%d%d%d\r\n",
+            state[0],
+            state[1],
+            state[2],
+            state[3]);
+
     MAX485_SendString(tx);
 }
 
-void Protocol_Process(char *frame)
+void Protocol_Process(char *cmd)
 {
-    if (frame == NULL)
+    if (cmd == NULL)
     {
         return;
     }
 
-    /*
-     * Frame mẫu:
-     * @01,PING
-     * @01,LED,1
-     * @01,GET_INPUT
-     */
-
-    if (frame[0] != '@')
+    if (strcmp(cmd, "AT") == 0)
     {
-        Protocol_SendERR("INVALID_START");
-        return;
+        Protocol_SendOK();
     }
-
-    char *addr_str = strtok(frame + 1, ",");
-    char *cmd      = strtok(NULL, ",");
-    char *data     = strtok(NULL, ",");
-
-    if (addr_str == NULL || cmd == NULL)
+    else if (strcmp(cmd, "AT+GETCFG") == 0)
     {
-        Protocol_SendERR("INVALID_FRAME");
-        return;
+        Protocol_SendConfig();
     }
-
-    uint8_t addr = atoi(addr_str);
-
-    if (addr != DEVICE_ID)
+    else if (strcmp(cmd, "AT+GETIN") == 0)
     {
-        return;
+        Protocol_SendInput();
     }
-
-    if (strcmp(cmd, "PING") == 0)
+    else if (strcmp(cmd, "AT+SAVE") == 0)
     {
-        Protocol_SendOK("PONG");
+        MAX485_SendString("OK SAVE\r\n");
     }
-    else if (strcmp(cmd, "LED") == 0)
+    else if (strncmp(cmd, "AT+SETID=", 9) == 0)
     {
-        if (data == NULL)
-        {
-            Protocol_SendERR("NO_DATA");
-            return;
-        }
-
-        if (strcmp(data, "1") == 0)
-        {
-            /*
-             * Nếu LED active low thì RESET là sáng.
-             * Nếu LED bình thường thì đổi RESET thành SET.
-             */
-            HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
-            Protocol_SendOK("LED=1");
-        }
-        else if (strcmp(data, "0") == 0)
-        {
-            HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
-            Protocol_SendOK("LED=0");
-        }
-        else
-        {
-            Protocol_SendERR("LED_DATA");
-        }
+        nodeId = (uint8_t)atoi(&cmd[9]);
+        Protocol_SendOK();
     }
-    else if (strcmp(cmd, "GET_INPUT") == 0)
+    else if (strncmp(cmd, "AT+SETDST=", 10) == 0)
     {
-        uint8_t state[4];
-        char msg[64];
-
-        Input_GetAll(state);
-
-        snprintf(msg, sizeof(msg),
-                 "IN=%d,%d,%d,%d",
-                 state[0],
-                 state[1],
-                 state[2],
-                 state[3]);
-
-        Protocol_SendOK(msg);
+        destId = (uint8_t)atoi(&cmd[10]);
+        Protocol_SendOK();
+    }
+    else if (strncmp(cmd, "AT+SETROLE=", 11) == 0)
+    {
+        strncpy(role, &cmd[11], 3);
+        role[3] = '\0';
+        Protocol_SendOK();
+    }
+    else if (strncmp(cmd, "AT+SETFREQ=", 11) == 0)
+    {
+        freq = (uint32_t)atol(&cmd[11]);
+        Protocol_SendOK();
+    }
+    else if (strncmp(cmd, "AT+SETBW=", 9) == 0)
+    {
+        bw = (uint8_t)atoi(&cmd[9]);
+        Protocol_SendOK();
+    }
+    else if (strncmp(cmd, "AT+SETSF=", 9) == 0)
+    {
+        sf = (uint8_t)atoi(&cmd[9]);
+        Protocol_SendOK();
+    }
+    else if (strncmp(cmd, "AT+SETCR=", 9) == 0)
+    {
+        cr = (uint8_t)atoi(&cmd[9]);
+        Protocol_SendOK();
+    }
+    else if (strncmp(cmd, "AT+SETPWR=", 10) == 0)
+    {
+        pwr = (int8_t)atoi(&cmd[10]);
+        Protocol_SendOK();
     }
     else
     {
-        Protocol_SendERR("UNKNOWN_CMD");
+        Protocol_SendError();
     }
 }

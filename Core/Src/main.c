@@ -23,7 +23,7 @@
 #include "uart.h"
 #include "string.h"
 #include "stdio.h"
-#include "Protocol.h"
+#include "protocol.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 

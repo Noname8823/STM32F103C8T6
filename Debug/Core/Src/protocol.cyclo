@@ -1,3 +1,5 @@
-../Core/Src/protocol.c:16:13:Protocol_SendOK	1
-../Core/Src/protocol.c:23:13:Protocol_SendERR	1
-../Core/Src/protocol.c:30:6:Protocol_Process	12
+../Core/Src/protocol.c:19:13:Protocol_SendOK	1
+../Core/Src/protocol.c:24:13:Protocol_SendError	1
+../Core/Src/protocol.c:29:13:Protocol_SendConfig	1
+../Core/Src/protocol.c:47:13:Protocol_SendInput	1
+../Core/Src/protocol.c:64:6:Protocol_Process	14
